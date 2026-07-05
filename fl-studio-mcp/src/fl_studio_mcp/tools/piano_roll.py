@@ -18,6 +18,7 @@ import platform
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from fl_studio_mcp.utils.critic import validate_notes, correct_notes
 from fl_studio_mcp.utils.fl_trigger import get_trigger, trigger_fl_studio
 
 if TYPE_CHECKING:
@@ -354,3 +355,46 @@ def register_piano_roll_tools(mcp: FastMCP) -> None:
             "request_file_exists": _get_request_file().exists(),
             "state_file_exists": _get_state_file().exists(),
         }
+
+    @mcp.tool()
+    def fl_critic_validate_notes(
+        notes: list[dict],
+        track_type: str,
+        key_signature: str = "D Phrygian",
+        auto_correct: bool = False
+    ) -> dict:
+        """Validate and optionally auto-correct MIDI notes using music theory and genre rules.
+
+        This tool acts as a "Critic" in the generator loop to check notes against
+        scale, range, overlap, and timing constraints, providing errors/warnings and
+        auto-corrections.
+
+        Args:
+            notes: List of note objects containing:
+                   - midi (int): MIDI note number (e.g. 60)
+                   - duration (float): Note length in quarter notes
+                   - time (float, optional): Start position (default 0)
+                   - velocity (float, optional): Velocity 0.0-1.0 (default 0.8)
+            track_type: The type of track ("hihat", "kick", "snare", "low_piano", "bass", "high_piano")
+            key_signature: The target key signature (e.g. "D Phrygian", "F minor")
+            auto_correct: If True, returns the corrected note list under "corrected_notes"
+
+        Returns:
+            A dictionary with:
+            - is_valid (bool): True if no errors are present
+            - errors (list[str]): Critical music theory/constraint violations
+            - warnings (list[str]): Style guidelines warnings (non-critical)
+            - corrected_notes (list[dict], optional): The auto-corrected note list
+        """
+        is_valid, errors, warnings = validate_notes(notes, track_type, key_signature)
+        
+        result = {
+            "is_valid": is_valid,
+            "errors": errors,
+            "warnings": warnings
+        }
+        
+        if auto_correct:
+            result["corrected_notes"] = correct_notes(notes, track_type, key_signature)
+            
+        return result

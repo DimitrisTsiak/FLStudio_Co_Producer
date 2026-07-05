@@ -335,6 +335,21 @@ def run_import(project_dir: str, track_type: str, match_index: int) -> None:
     if not track_notes:
         print(f"Error: Track type '{track_type}' not found in project.")
         return
+
+    # Run Critic validation checks
+    from fl_studio_mcp.utils.critic import validate_notes, correct_notes
+    key_sig = beat_data.get("key", "D Phrygian")
+    is_valid, errors, warnings = validate_notes(track_notes, track_type, key_sig)
+    if not is_valid:
+        print(f"CRITIC WARNING: Validation errors found for track '{track_type}' in key '{key_sig}':")
+        for err in errors:
+            print(f"  - {err}")
+        print("Auto-correcting notes before import...")
+        track_notes = correct_notes(track_notes, track_type, key_sig)
+    elif warnings:
+        print(f"CRITIC INFO: Validation warnings for track '{track_type}':")
+        for wrn in warnings:
+            print(f"  - {wrn}")
         
     conn = get_connection()
     try:
